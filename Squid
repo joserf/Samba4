@@ -1,0 +1,211 @@
++---------------------------------------+
+| 	Instalando os pacotes           |
++---------------------------------------+
+
+apt-get install squid3 sarg -y
+
+mkdir /etc/squid3/acls
+mkdir /etc/squid3/acls/bloqueados
+cd /etc/squid3/acls/bloqueados/
+touch arquivos ips logins palavras sites
+chmod 777 arquivos ips logins palavras sites
+
+mkdir /etc/squid3/acls/liberados
+cd /etc/squid3/acls/liberados/
+touch ips logins palavras sites
+chmod 777 ips logins palavras sites
+
+mkdir /etc/squid3/acls/banda
+cd /etc/squid3/acls/banda/
+touch bandabaixa bandamedia bandaalta
+chmod 777 bandabaixa bandamedia bandaalta
+
+cp /etc/squid3/squid.conf /etc/squid3/squid.conf.bkp
+
+vim /etc/squid3/squid.conf
+
++---------------------------------------+
+|	Arquivo de configuração 	|
++---------------------------------------+
+
+################################################################################
+
+# 
+#  			 WELCOME TO SQUID 3.4.8			 
+# 
+
+# usando com o IP para garantir apenas conexoes via rede interna.
+http_port 192.168.1.1:3128
+
+# Nome visivel.
+visible_hostname TESTE
+
+# Administrador do cache.
+cache_mgr email@provedor.com
+mail_from email@provedor.com
+
+# Setando para 2 gigas, os outros 2 gigas vamos deixar 1 giga para o sistema e 1 giga para operação do cache em disco.
+cache_mem 2048 MB
+ 
+# Tamanho de objetos em memoria e disco.
+maximum_object_size_in_memory 512 KB
+maximum_object_size 64 MB
+minimum_object_size 0 KB
+ 
+# Quais o rate para objetos devem serem swapados.
+cache_swap_low 90
+cache_swap_high 95
+
+# Lembrando que cada 10GB de cache o squid consome 100MB de ram para gerenciar isto
+# colocando 100GB de STORAGE o squid vai usar 1 Giga da RAM para gerenciar o cache do disco
+# estou reservando entao 3 gigas para o squid, 2 para cache_mem e 1 para cuidar do cache em disco, sobrando 1 GB para o sistema usar.
+# Em relacao ao metodo de gerenciamento do cache, aufs é + rapido que ufs
+ 
+cache_dir aufs /var/spool/squid3 100240 16 256
+
+# logs.   
+#access_log /var/log/squid3/access.log squid
+#cache_log /var/log/squid3/cache.log
+
+# Idioma das mensagens do squid para usuarios. 
+#error_directory /usr/share/squid3/errors/Portuguese
+
+# ACLS.
+
+acl bandabaixa src "/etc/squid3/acls/banda/bandabaixa"
+acl bandamedia src "/etc/squid3/acls/banda/bandamedia"
+acl bandaalta src "/etc/squid3/acls/banda/bandaalta"
+#acl bandaalta src 192.168.1.200
+
+# Delay Pools.
+
+delay_pools 3
+delay_class 1 2
+delay_class 2 2
+delay_class 3 2
+
+delay_access 1 allow bandabaixa
+delay_access 2 allow bandamedia
+delay_access 3 allow bandaalta
+
+delay_parameters 1 -1/-1 13000/13000
+delay_parameters 2 -1/-1 25000/25000
+delay_parameters 3 -1/-1 52000/52000 
+
+acl ips_liberados     src "/etc/squid3/acls/liberados/ips"
+acl sites_liberados   url_regex -i "/etc/squid3/acls/liberados/sites"
+acl sites_bloqueados  url_regex -i "/etc/squid3/acls/bloqueados/sites"
+acl palavras	      url_regex -i "/etc/squid3/acls/bloqueados/palavras"
+acl ips_bloqueados    src "/etc/squid3/acls/bloqueados/ips"
+acl downloads         urlpath_regex "/etc/squid3/acls/bloqueados/arquivos"
+
+# Lista de redes liberadas.
+acl rede src 192.168.1.0/24
+
+# Portas seguras
+acl SSL_ports port 443
+# Portas comuns
+acl Safe_ports port 80  		# http
+acl Safe_ports port 21  		# ftp
+acl Safe_ports port 443  		# https
+acl Safe_ports port 70  		# gopher
+acl Safe_ports port 210  		# wais
+acl Safe_ports port 1025-65535 		# unregistered ports
+acl Safe_ports port 280  		# http-mgmt
+acl Safe_ports port 488  		# gss-http
+acl Safe_ports port 591  		# filemaker
+acl Safe_ports port 777  		# multiling http
+acl CONNECT method CONNECT
+
+# Autenticação Samba 4 | para quem esta logado no dominio, aproveita a senha do logon.
+auth_param ntlm program /usr/bin/ntlm_auth --helper-protocol=squid-2.5-ntlmssp --domain=VULCABRAS
+auth_param ntlm children 5
+
+# Caso não queira aproveitar o logon.
+#auth_param basic program /usr/bin/ntlm_auth --helper-protocol=squid-2.5-basic
+#auth_param basic children 5
+
+#auth_param basic realm ATENCAO: ao digitar seu login e senha o usuario declara estar ciente do conteudo que regulamenta o uso da Internet.  SERVIDOR PROXY
+#auth_param basic credentialsttl 2 hours
+
+# Impedimento de login simultaneo
+#authenticate_ip_ttl 5 minutes
+#authenticate_ip_ttl 60
+#acl umlogin max_user_ip -s 1
+#http_access deny umlogin
+
+# Especificar uso obrigatorio de proxy.
+acl AuthorizedUsers proxy_auth REQUIRED
+
+# Liberacoes padrao. 
+http_access     allow   ips_liberados
+http_access     allow   sites_liberados
+http_access     deny    sites_bloqueados
+http_access     deny    palavras
+http_access     deny    ips_bloqueados
+http_access     deny	downloads
+
+http_access allow manager localhost
+http_access deny manager
+http_access deny !Safe_ports
+http_access deny CONNECT !SSL_ports
+http_access allow localhost
+#http_access allow       logins
+http_access allow all AuthorizedUsers 
+http_access allow rede
+http_access deny all
+
+
+################################################################################
+
+Verificar configurações (caso necessario)
+
+vim /etc/squid3/squid.conf
+
+Então apenas digite:
+
+service squid3 restart
+
+squid3 -v
+
++---------------------------------------+
+|	Sarg - Relatorio de paginas	|
++---------------------------------------+
+
+Copie o arquivo de configuração padrao ou faça na mão como abaixo.
+
+cp /etc/sarg/sarg.conf /etc/sarg/sarg.conf.bkp
+
+vim /etc/sarg/sarg.conf
+
+Linha 7 alterar 
+
+access_log /var/log/squid/access.log
+ 
+para
+
+access_log /var/log/squid3/access.log
+
+Descomente a linha 120 e comente a linha 121
+
+output_dir /var/www/html/squid-reports
+#output_dir /var/lib/sarg
+
+Para gerar os relatorios:
+
+sarg
+
++---------------+
+|	Dicas	|
++---------------+
+
+Descrição: verifica se o servidor ingressou corretamente no dominio
+saída correta: checking the trust secret via RPC calls succeeded.
+
+comando: wbinfo -t 
+
++-----------------------+
+|	Permissão	|
++-----------------------+
+
+chmod 6755 /usr/bin/ntlm_auth ; /etc/init.d/squid3 restart
