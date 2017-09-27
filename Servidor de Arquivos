@@ -1,0 +1,776 @@
++-------------------------------+
+|	Configurações inicias	|	
++-------------------------------+
+
+Nome do dominio: VULCABRAS.GOV.BR | vulcabras.gov.br
+Nome do servidor de dominio: SRVDOMINIO | srvDominio
+IP do servidor de dominio: 192.168.1.10
+
++-------------------------------+
+|	Instalação dos pacotes	|
++-------------------------------+
+
+apt-get update ; apt-get install quota vim ntp ntpdate samba libnss-winbind acl attr winbind krb5-config figlet -y 
+
++---------------+
+|	Rede	|
++---------------+
+
+vim /etc/network/interfaces
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+allow-hotplug eth0
+
+iface eth0 inet static
+address 192.168.1.40
+netmask 255.255.255.0
+gateway 192.168.1.1
+
++---------------+
+|	Hosts   |
++---------------+
+
+vim /etc/hosts
+
+127.0.0.1       localhost
+192.168.1.40    srvArquivos.vulcabras.gov.br srvArquivos
+
+COMENTAR OU REMOVER IPV6.
+
+hostname
+
+srvArquivos
+
+hostname -f
+
+Resposta do comando acima:
+
+srvArquivos.vulcabras.gov.br
+
+
+vim /etc/resolv.conf
+
+domain vulcabras.gov.br
+search vulcabras.gov.br
+# Controlador de dominio
+nameserver 192.168.1.10
+nameserver 8.8.8.8 
+
+BLoquear
+chattr +i /etc/resolv.conf
+
+Verificar se esta resolvendo o nome.
+
+host -t A srvDominio.vulcabras.gov.br
+
+Resultado:
+srvDominio.vulcabras.gov.br has address 192.168.1.10
+
++-------------------------------+
+|	Identificando Servidor	|	
++-------------------------------*
+
+touch /etc/motd
+vim /etc/motd
+
+
+figlet "srvArquivos"
+                 _                    _                
+ ___ _ ____   __/ \   _ __ __ _ _   _(_)_   _____  ___ 
+/ __| '__\ \ / / _ \ | '__/ _` | | | | \ \ / / _ \/ __|
+\__ \ |   \ V / ___ \| | | (_| | |_| | |\ V / (_) \__ \
+|___/_|    \_/_/   \_\_|  \__, |\__,_|_| \_/ \___/|___/
+                             |_|                       
+
+
++---------------+
+|	NTP	|
++---------------+
+
+cp /etc/ntp.conf /etc/ntp.conf.bkp
+
+
+vim /etc/ntp.conf
+
+
+# Relógio Local (este não é o endereço de localhost!)
+server 127.127.1.0
+fudge  127.127.1.0 stratum 10
+
+# A fonte, onde estamos recebendo o tempo
+server srvDominio.vulcabras.gov.br  iburst prefer
+
+driftfile /var/lib/ntp/ntp.drift
+logfile   /var/log/ntp
+
+# Controle de acesso
+# Restrição Padrão
+restrict default ignore
+
+# Permitir tudo, desde localhost
+restrict 127.0.0.1
+
+# Permita que a nossa fonte de tempo só pode fornecer tempo e fazer mais nada
+restrict srvDominio.vulcabras.gov.br mask 255.255.255.255    nomodify notrap nopeer noquery
+
+/etc/init.d/ntp restart
+
+date
+
+getent hosts srvArquivos
+
+Resultado
+
+192.168.1.40    srvArquivos.vulcabras.gov.br srvArquivos
+
++---------------+
+|	Samba	|
++---------------+
+
+cp /etc/samba/smb.conf /etc/samba/smb.conf.bkp
+
+vim /etc/samba/smb.conf
+
+# ======================= Global Settings ======================= #
+
+[global]
+
+	workgroup = VULCABRAS
+	realm = VULCABRAS.GOV.BR
+	netbios name = srvArquivos
+	security = ADS	
+	
+	# Equivalente a "herdar permissões do objeto pai para objetos filho" no windows	
+	map acl inherit = yes
+	
+	#Se esse parâmetro for definido Samba tenta ler primeiro os 
+	#atributos DOS (SYSTEM, HIDDEN, ARCHIVE or READ-ONLY) antes de mapear para unix
+        store dos attributes = yes
+	
+	#faz que o samba trabalhe com permissões ACL
+	#como no Windows 
+	vfs objects = acl_xattr
+	
+	#armazena Access Control Lists (ACLs NTFS) em um 
+	#arquivo TDB em file_ntacls.tdb e permite mapeamento 
+	#completo das ACLs Windows em servidores Samba	
+	vfs objects = acl_tdb
+	
+	#A keytab é um arquivo contendo pares de chaves 
+	#principais Kerberos criptografadas (são derivadas da senha Kerberos)
+	#permiti que scripts para autentique automaticamente usando 
+	#Kerberos, sem a necessidade de interação humana
+	
+	dedicated keytab file = /etc/krb5.keytab
+	kerberos method = secrets and keytab
+	winbind refresh tickets = yes
+	
+	# Faz mapeamento do RID ( Windows ) como UID ( linux)
+
+	idmap config *:backend = tdb
+	idmap config *:range = 1000000-1999999
+
+	idmap config SAMBA:backend = ad
+	idmap config SAMBA:range = 10000-999999
+
+	winbind nss info = rfc2307
+	winbind trusted domains only = no
+	
+	#Se essa opção for configurada para Yes, o Winbind descarta o 
+	#componente de domínio dos nomes de usuário 
+	#na maioria das operações, o que costuma ser desejável, 
+	#porque encurta os nomes de usuário —por exemplo, 
+	#de MEUDOMINIO\joserf para joserf. Usar o valor padrão " No " 
+	#faz sentido se sua rede inclui diversos domínios.
+	
+	winbind use default domain = yes
+	
+	#Essa opção de operadores booleanos ativa ou desativa o suporte
+        #a certas chamadas de sistema que permitem que os programas 
+	#enumerem os usuários. O valor padrão é " Yes" , mas 
+	#configurá-la como " No " pode 	#melhorar o desempenho 
+	#ao custo de comportamento estranho de alguns programas, como finger.
+	
+	winbind enum users = yes
+	
+	# Essa opção funciona de maneira muito semelhante a 
+	#winbind enum users, mas aplica-se a grupos 
+	# em vez de a usuários.
+	
+	winbind enum groups = yes
+	
+	template shell = /bin/bash
+	
+	#Se este for " yes ", então cada gravação será seguido por uma fsync () 
+	#para garantir que os dados são gravados no disco se " no " o servidor será solicitado
+	#pelo cliente para camada de gravação.
+
+	sync always = yes
+	strict sync = yes
+
+	# Bloquear tipos de arquivos
+	#veto files = /*.exe/*.bmp/*.pif/*.bat/*.{*}/
+
+# ======================= End global Settings ======================= #
+
+Reiniciar o samba
+
+/etc/init.d/samba restart
+
++---------------+
+|	KRB5	|
++---------------+
+
+cp /etc/krb5.conf /etc/krb5.conf.bkp
+
+vim /etc/krb5.conf
+
+
+[libdefaults]
+	 default_realm = VULCABRAS.GOV.BR
+	 dns_lookup_realm = false
+	 dns_lookup_kdc = false
+	 ticket_lifetime = 24h
+	 renew_lifetime = 7d
+	 forwardable = true
+
+[realms]
+	  VULCABRAS.GOV.BR = {
+	  kdc = SRVDOMINIO.VULCABRAS.GOV.BR
+	  admin_server = SRVDOMINIO.VULCABRAS.GOV.BR
+ }
+
++---------------+
+|	Dominio	|
++---------------+
+
+Colocar o servidor no dominio.
+
+net ads join -U administrator
+
+Resposta
+Enter administrator's password:
+Using short domain name -- VULCABRAS
+Joined 'SRV-ARQUIVOS' to dns domain 'vulcabras.gov.br'
+
+vim /etc/nsswitch.conf
+
+de:
+
+passwd:         compat 
+group:          compat 
+shadow:         compat 
+
+
+para:
+
+passwd:         compat winbind
+group:          compat winbind
+shadow:         compat winbind
+
+
+Reiniciar winbind
+
+/etc/init.d/winbind restart
+
+Testar se esta listando os usuarios e os grupos.
+
+wbinfo -u ; wbinfo -g ; getent passwd
+
+Resposta:
+
+joserf:*:1000000:1000000:José Rodrigues Filho:/home/VULCABRAS/joserf:/bin/bash
+
++-------------------------------+
+|	Testar mapeamentos	|
++-------------------------------+
+
+Testar mapeamentos de usuarios.
+
+getent passwd |grep joserf (algum usuario do dominio)
+
+getent group |grep ti (algum grupo cadastrado)
+
++---------------+
+|	RPC	|
++---------------+
+
+Dar privilegios RPC ao servidor
+
+net rpc rights list accounts -U 'VULCABRAS\administrator'
+
+--------------------------------------------------------------------------------
+OBS: no caso de erro no comando acima:
+
+Criar um arquivo em '/etc/samba/user.map'com o seguinte comteudo:
+
+vim /etc/samba/user.map
+
+!root = VULCABRAS\administrator VULCABRAS\administrator
+
+Colocar em [global] do samba a seguinte linha:
+
+vim /etc/samba/smb.conf
+
+username map = /etc/samba/user.map
+
+Reiniciar o samba
+
+/etc/init.d/samba restart 
+
+e executar novamente
+
+net rpc rights list accounts -U 'VULCABRAS\administrator'
+--------------------------------------------------------------------------------
+
++-----------------------+
+|	Pastas e Grupos	|
++-----------------------+
+
+samba-tool group add administracao --description="Grupo da Administracao"
+samba-tool group add almoxarifado --description="Grupo do Almoxarifado"
+samba-tool group add compras --description="Grupo do Compras"
+samba-tool group add convenios --description="Grupo do Convenios"
+samba-tool group add juridico --description="Grupo do Juridico"
+samba-tool group add tesouraria --description="Grupo da Tesouraria"
+samba-tool group add ti --description="Grupo da T.I"
+
+--------------------------------------------------------------------------------
+APENAS OS COMANDOS ACIMA DEVEM SER EXECUTADOS NO SERVIDOR SAMBA 4 (srvDominio)
+--------------------------------------------------------------------------------
+
+
+
+1- Criando as pastas
+2- Setar as propriedades e as permissoes para o grupo proprietario  
+3- Alterar o grupo proprietario para os administradores de dominio
+
+[1]
+mkdir -p /mnt/shares/VULCA
+mkdir -p /mnt/homes/VULCA/homes
+mkdir -p /mnt/troca/VULCA/troca
+
+mkdir /mnt/shares/VULCA/administracao
+mkdir /mnt/shares/VULCA/almoxarifado
+mkdir /mnt/shares/VULCA/compras
+mkdir /mnt/shares/VULCA/convenios
+mkdir /mnt/shares/VULCA/juridico
+mkdir /mnt/shares/VULCA/tesouraria
+mkdir /mnt/shares/VULCA/ti
+
+[2]
+chmod g=rwx /mnt/shares/VULCA/
+chmod g=rwx /mnt/homes/VULCA/homes
+chmod g=rwx /mnt/troca/VULCA/troca
+
+chmod g=rwx /mnt/shares/VULCA/administracao
+chmod g=rwx /mnt/shares/VULCA/almoxarifado
+chmod g=rwx /mnt/shares/VULCA/compras
+chmod g=rwx /mnt/shares/VULCA/convenios
+chmod g=rwx /mnt/shares/VULCA/juridico
+chmod g=rwx /mnt/shares/VULCA/tesouraria
+chmod g=rwx /mnt/shares/VULCA/ti
+
+[3]
+chgrp "Domain Admins" /mnt/shares/VULCA/
+chgrp "Domain Admins" /mnt/homes/VULCA/homes
+chgrp "Domain Admins" /mnt/troca/VULCA/troca
+
+chgrp "Domain Admins" /mnt/shares/VULCA/administracao
+chgrp "Domain Admins" /mnt/shares/VULCA/almoxarifado
+chgrp "Domain Admins" /mnt/shares/VULCA/compras
+chgrp "Domain Admins" /mnt/shares/VULCA/convenios
+chgrp "Domain Admins" /mnt/shares/VULCA/juridico
+chgrp "Domain Admins" /mnt/shares/VULCA/tesouraria
+chgrp "Domain Admins" /mnt/shares/VULCA/ti
+
+
+vim /etc/samba/smb.conf
+
+# ======================= Home Definitions ======================= #
+
+[users]
+         path = /mnt/homes/VULCA/users/
+         read only = no
+         force create mode = 0600
+         force directory mode = 0700
+
+# ======================= Share Definitions ======================= #
+
+[troca]
+	comment = Troca de arquivos
+	path = /mnt/troca/VULCA/troca
+	force group = +troca
+	read only = No
+
+
+[administracao]
+	comment = Administracao
+	path = /mnt/shares/VULCA/administracao
+	force group = +administracao
+	read only = No
+
+
+[almoxarifado]
+	comment = Almoxarifado
+	path = /mnt/shares/VULCA/almoxarifado
+	force group = +almoxarifado
+	read only = No
+
+
+[compras]
+	comment = Compras
+	path = /mnt/shares/VULCA/compras
+	force group = +compras
+	read only = No
+
+
+[convenios]
+	comment = Convenios
+	path = /mnt/shares/VULCA/convenios
+	force group = +convenios
+	read only = No
+
+
+[juridico]
+	comment = Juridico
+	path = /mnt/shares/VULCA/juridico
+	force group = +juridico
+	read only = No
+
+
+[tesouraria]
+	comment = Tesouraria
+	path = /mnt/shares/VULCA/tesouraria
+	force group = +tesouraria
+	read only = No
+
+
+[t.i]
+	comment = Diretoria de T.I
+	path = /mnt/shares/VULCA/ti
+	force group = +ti
+	read only = No
+
+# PROCEDIMENTO PADRAO PARA FUNCIONAMENTO DE COMPARTILHAMENTO #
+#                                                            #
+# mkdir /mnt/shares/VULCA/compartilhamento                   #
+# chmod g=rwx /mnt/shares/VULCA/compartilhamento             #
+# chgrp "Domain Admins" /mnt/shares/VULCA/compartilhamento   #
+#                                                            #
+##############################################################
+
+# ======================= End share Definitions ======================= #
+
+
+Caso não tenha criado os grupos por linha de comando, criar os grupos citados acima com RSAT. (Recomendo windows server 2008 r2 atualizado)
+
+Reiniciar o samba
+
+/etc/init.d/samba restart
+
++---------------------------------------+
+|	Permissoes grupos/pastas 	|
++---------------------------------------+
+
+Dar as seguintes permissões nos compartilhamentos criados:  
+
+	::GRUPOS
+
+Ex do compartilhamento T.I:
+
+ti - remover "Todos", adicionar apenas o grupo 'T.I' (remover controle total e apropriar-se)
+
+Faça o mesmo em administracao, almoxarifado, compras, convenios, juridico, tesouraria, ti....
+
+====================================================================================
+APÓS ADICIONAR USUARIO AO GRUPO, T.I POR EXEMPLO, FAZER LOGOFF PARA ENTRAR EM VIGOR. 
+====================================================================================
+
+
+	::TROCA DE ARQUIVOS
+
+
+Crie um grupo Troca de arquivos, com o nome de "troca" e adicione nesse grupo o membro "Domain Users".
+
+
+Como Administrator crie as pastas no troca:
+
+\\srvArquivos\troca
+
+Administracao
+Almoxarifado
+Compras
+Convenios
+Juridico
+Tesouraria
+T.I
+
+
+Nas propriedades do compartilhamento Troca - remover o grupo "Todos", adicionar o grupo 'troca' Aplicar em: Esta pasta somente (Percorrer pasta/executar arquivo, Listar pasta/ler dados, Ler atributos, Ler atributos estendidos e Permissoes de leitura)
+
+Se der um aviso clique em sim.
+
+
+E em cada pasta criada, adicionar apenas o grupo 'troca' Aplicar em: Esta pasta, subpastas e arquivos (remover, Controle total, Excluir).
+
+Manter [x]incluir permissoes herdaveis.
+
+
+	::HOME (pasta do usuario, home folder)
+
+	As pastas iniciais contêm arquivos de uma conta individual. Usando o Samba, você pode compartilhar os diretórios para permitir que os usuários da rede armazenem seus próprios arquivos em sua pasta inicial no servidor de arquivos.
+
+
+ ==== ATENÇÃO: Não use "homes" como nome do compartilhamento. ====
+
+	O recurso [homes] não é suportado executando em um controlador de domínio Samba Active Directory (AD) (DC). 
+
+	O diretório que contém as pastas domésticas é compartilhado usando o nome de compartilhamento dos users . O diretório inicial de cada usuário é criado como um subdiretório no \\server\users\ share, como, \\server\users\ user_name . Este é o mesmo formato usado em um ambiente Microsoft Windows e não requer nenhum trabalho adicional para configurar. 
+
+by: google tradutor
+-------------------
+
+
+Criar as seguintes pastas:
+
+mkdir -p /mnt/homes/VULCA/users/
+chgrp -R "Domain Users" /mnt/homes/VULCA/users/
+chmod 2750 /mnt/homes/VULCA/users/
+
+
+Como administrator acesse a pasta /mnt/homes/VULCA/users/ e remova o grupo TODOS(ultimo da lista) caso de um aviso clique em sim, deixando da seguinte forma:
+
+
+Nome: root (Unix User\root)
+Aplicar em: Esta pasta somente
+Permissões: Controle total
+
+
+Nome: Domain Users 
+Aplicar em: Esta pasta somente
+Permissões: Percorrer pasta/executar arquivo - Listar pasta/ler dados - Ler atributos - Ler atributos estendidos - Permissões de leitura 
+
+
+Nome: Todos
+Aplicar em: Esta pasta somente
+Permissões: VAZIO, SEM NADA ASSINALADO
+
+
+Nome: Proprietario criador
+Aplicar em: Subpastas e arquivos somente
+Permissões: Controle total
+
+
+Nome: Grupo criador
+Aplicar em: Subpastas e arquivos somente
+Permissões: Percorrer pasta/executar arquivo - Listar pasta/ler dados - Ler atributos - Ler atributos estendidos - Permissões de leitura
+
+
+Agora é o pulo do gato:
+
+Em propriedades do usuario do dominio, aba perfil:
+
+Defina uma letra qualquer (H:) \\srvarquivos\users\%USERNAME%
+
+depois volte para caminho local e clique em aplicar para o campo ficar vazio (isso é normal, apenas para criar a pasta do usuario no servidor).
+
+
+
+	::GPO HOME FOLDER
+
+=== Mapeamento HOME ===
+
+- Configurações do Usuario
+-- Preferencias
+--- Mapas de Unidades
+'
+'
+'      Aba Geral
+'
+'       Ação: Criar
+'	Local: \\srvarquivos\users\%LogonUser%
+'	[*] Reconectar
+'	Rotular como: Home
+'	Usar: H
+'
+'	Aba Comum
+'
+'	[*] Executar no contexto de segurança do usuario conectado (opção de diretiva do usuario)
+'
++-- Atalhos
+
+       Aba Geral
+
+	Ação: Criar
+	Nome: Home
+	Local: Área de trabalho
+
+	Caminho de distino: 
+	Comentario: Home Folder
+	Caminho de arquivo de icone: %SystemRoot%\system32\SHELL32.dll
+	Índice do icone: 
+
+      Aba Comum	
+
+	
+
+
++---------------+
+|	Webmin	|
++---------------+
+
+Debian package suitable for Debian, Ubuntu or other derived Linux
+http://prdownloads.sourceforge.net/webadmin/webmin_1.831_all.deb 14.8 MB
+
+
+Obtendo:
+
+wget http://prdownloads.sourceforge.net/webadmin/webmin_1.831_all.deb
+
+Instalando:
+
+dpkg -i webmin_1.831_all.deb ; apt-get -f install -y
+
+Configurando:
+
+https://192.168.1.40:10000/   (login e senha do root)
+
+Altere a linguagem para PTBR.
+
+Ir em Sistema, Quotas de Disco e "Habilitar Cotas" 
+
+	::/mnt/shares/
+
+Agora em /mnt/shares/ (groups), defina a cota para o grupo desejado. 
+
+Dica: soft(cota) e hard(tolerancia)
+
+Limite flexivel deixar ilimitado (recomendado)
+
+Caso for definido cota por usuario, o usuario não pode ter mais espaço do que a cota do grupo, por exemplo, se o grupo tem 5gb, o usuario não pode ter mais que 5gb de espaço para salvar arquivos.
+A melhor coisa a fazer é trabalhar apenas com cotas por grupo, apenas no caso de querer castigar um usuario com espaço de 50mb em um compartilhamento de 5gb.
+
+Teste de cotas:
+
+Fazer logon com o usuario do dominio e jogar os arquivos na pasta do grupo com cota até encher e verificar se a cota esta funcionando.
+
+	::/mnt/troca
+
+Agora em /mnt/troca/ (groups), defina a cota para o grupo troca.
+
+Faça o mesmo em administracao, almoxarifado, compras, convenios, juridico, tesouraria, ti....
+
+	::/mnt/homes
+
+=== Mapeamento troca de arquivos na area de trabalho ===
+
+- Configurações do Usuario
+-- Preferencias
+--- Mapas de Unidades
+'
+'
+'      Aba Geral
+'
+'       Ação: Criar
+'	Local: \\srvarquivos\troca
+'	[*] Reconectar
+'	Rotular como: Troca de Arquivos
+'	Usar: T
+'
+'	Aba Comum
+'
+'	[*] Direcionamento de nivel de item (inserir o grupo troca)
+'
++-- Atalhos
+
+       Aba Geral
+
+	Ação: Criar
+	Nome: Troca de Arquivos
+	Local: Área de trabalho
+
+	Caminho de distino: \\srvarquivos\troca
+	Comentario: Troca de Arquivos
+	Caminho de arquivo de icone: %SystemRoot%\system32\SHELL32.dll
+	Índice do icone: 148
+
+      Aba Comum	
+
+	[*] Direcionamento de nivel de item (inserir o grupo troca)
+	
+=== Mapeamentos ===
+
+Administracao
+
+- Configurações do Usuario
+-- Preferencias
+--- Mapas de Unidades
+'
+'
+'      Aba Geral
+'
+'       Ação: Criar
+'	Local: \\srvarquivos\administracao
+'	[*] Reconectar
+'	Rotular como: Administracao
+'	Usar primeiro disponivel, começando em: I
+'
+'	Aba Comum
+'
+'	[*] Executar no contexto de segurança do usuario conectado
+'	[*] Direcionamento de nivel de item (inserir o grupo administração)
+'
++-- Atalhos
+
+       Aba Geral
+
+	Ação: Criar
+	Nome: Administracao
+	Local: Área de trabalho
+
+	Caminho de distino: \\srvarquivos\administracao
+	Comentario: Administracao
+	Caminho de arquivo de icone: %SystemRoot%\system32\SHELL32.dll
+	Índice do icone: 273
+
+      Aba Comum	
+
+	[*] Executar no contexto de segurança do usuario conectado
+	[*] Direcionamento de nivel de item (inserir o grupo administracao)
+
+
+Repetir o proceso em todos abaixo. 
+
+	------Almoxarifado-
+	-----Compras-------
+	----Convenios------
+	---Juridico--------
+	--Tesouraria-------
+	-T.I---------------
+
+=== Não Aplicar GPO a um Grupo Específico ===
+
+Selecione a GPO
+clique na aba Delegação
+Adançado
+Avançado
+Adicionar, adicione o grupo ou usuario desejado.
+Aplicar diretiva de grupo, selecione negar.
+
+Cria um arquivo na pasta troca com o seguinte conteudo
+
+vim /mnt/troca/VULCA/troca/LEIA-ME.txt
+
+A Diretoria de TI informa que a função desse compartilhamento é para envio e recebimento (troca) de arquivos entre setores. Importante ressaltar que, a fim de evitar o uso para armazenamento de arquivos, todo seu conteúdo será apagado aos domingos.
+
+Com as seguintes permissões no arquivo
+
+Nome: Todos
+Permissões: Percorrer pasta/executar arquivo - Listar pasta/ler dados - Ler atributos - Ler atributos estendidos - Permissões de leitura 
