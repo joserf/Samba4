@@ -1,0 +1,201 @@
++-------------------------------+
+|	Instalação dos pacotes	|
++-------------------------------+
+
+apt-get update ; apt-get install vim isc-dhcp-server figlet -y ; echo Pacotes instalados
+
++-------------------------------+
+|	Identificando Servidor	|	
++-------------------------------*
+
+touch /etc/motd
+vim /etc/motd
+
+Apagar todo conteudo do arquivo.
+
+figlet "srvDHCP"
+                ____  _   _  ____ ____  
+ ___ _ ____   _|  _ \| | | |/ ___|  _ \ 
+/ __| '__\ \ / / | | | |_| | |   | |_) |
+\__ \ |   \ V /| |_| |  _  | |___|  __/ 
+|___/_|    \_/ |____/|_| |_|\____|_|    
+                                        
+
++---------------+
+|	Rede	|
++---------------+
+
+vim /etc/network/interfaces
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+allow-hotplug eth0
+# Aqui esta DHCP por ser um laboratorio de testes.
+iface eth0 inet dhcp
+
+ou
+
+# The primary network interface
+allow-hotplug eth0
+iface eth0 inet static
+        address 192.168.56.109
+        netmask 255.255.255.0
+        network 192.168.56.0
+        broadcast 192.168.56.255
+        gateway 192.168.56.1
+        # dns-* options are implemented by the resolvconf package, if installed
+        dns-nameservers 192.168.56.1
+
+
+allow-hotplug eth1 #Faz com que o Debian detecte e aplique as configurações logo que o cabo é ligado ou desligado.
+iface eth1 inet static
+	address 192.168.1.1
+	netmask 255.255.255.0
+
+
+Restart
+/etc/init.d/networking restart
+
++---------------+
+|	Nat	|
++---------------+
+
+vim /etc/init.d/firewall
+
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          nat
+# Required-Start:    $local_fs $remote_fs $network $syslog
+# Required-Stop:     $local_fs $remote_fs $network $syslog
+# Default-Start:     5 3 4 
+# Default-Stop:      0 1 6 2
+# Short-Description: Start nat at boot time
+# Description:       Enable service provided by nat
+### END INIT INFO
+
+iniciar(){
+
+echo "Modulo carregado e roteamento habilitado"
+echo 1 > /proc/sys/net/ipv4/ip_forward
+
+# Mascaramento da conexao
+#*note que o eth0 é o nome da interface que está conectado a internet.
+iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+
+# Restringe acesso direto a Internet, note que eth1 é o nome da interface de rede dos clientes.
+#iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 80 -j REDIRECT --to-port 3128
+
+# Redirecionamentos
+
+echo "Redirecionando porta 2210 para porta 22 do ip 1.10" 
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 2210 -j DNAT --to 192.168.1.10:22
+
+}
+
+parar(){
+
+echo 0> /proc/sys/net/ipv4/ip_forward
+iptables -t nat -F
+
+}
+
+case "$1" in 
+"start") iniciar ;; 
+"stop") parar ;; 
+"restart") parar; iniciar ;;
+*) echo "Use os parâmetros start ou stop"
+esac
+
+Tornar executavel e colocando na inicialização
+
+chmod +x /etc/init.d/firewall 
+
+update-rc.d firewall defaults
+
+ls /etc/rc* |grep firewall
+
++---------------+
+|	DHCP	|
++---------------+
+
+cp /etc/dhcp/dhcpd.conf /etc/dhcp/dhcpd.conf.bkp
+
+vim /etc/dhcp/dhcpd.conf
+
+################################################################################
+#Tempo de vida do endereço, tempo medido em segundos,logo 600 equivale a 6 minutos.
+
+ddns-update-style none;
+default-lease-time 600;
+max-lease-time 7200;
+authoritative;
+
+# Informações sobre a Rede e Range
+
+subnet 192.168.1.0 netmask 255.255.255.0 {
+        range 192.168.1.2 192.168.1.250;
+        option routers 192.168.1.1;
+        option netbios-name-servers 192.168.1.10;
+        option domain-name-servers 192.168.1.10, 8.8.8.8;
+        option broadcast-address 192.168.1.255;
+
+        host srvDominio {
+                hardware ethernet 08:00:27:3a:a7:29;
+                fixed-address 192.168.1.10;
+                }
+
+	host srvDCAdicional {
+                hardware ethernet 08:00:27:95:26:1e;
+                fixed-address 192.168.1.20;
+                }
+
+	host srvDC2008 {
+                hardware ethernet 08:00:27:47:13:9c;
+                fixed-address 192.168.1.30;
+                }
+
+	host srvArquivos {
+                hardware ethernet 08:00:27:df:d8:bb;
+                fixed-address 192.168.1.40;
+                }
+
+	host srvImpressao {
+                hardware ethernet ;
+                fixed-address 192.168.1.50;
+                }        
+
+	host desktop7 {
+                hardware ethernet 08:00:27:30:7f:be;
+                fixed-address 192.168.1.100;
+                }
+
+	host desktop-W7pro {
+                hardware ethernet 08:00:27:49:e5:d8;
+                fixed-address 192.168.1.150;
+                }
+
+	host desktopW10 {
+                hardware ethernet 08:00:27:d0:23:fc;
+                fixed-address 192.168.1.200;
+                }
+
+
+               }
+
+################################################################################
+
+vim /etc/default/isc-dhcp-server
+
+Linha 21
+
+Adcionar 'eth1'
+
+INTERFACES="eth1"
+
+/etc/init.d/isc-dhcp-server restart
