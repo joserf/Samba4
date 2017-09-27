@@ -1,6 +1,6 @@
-+-----------------------+
++-------------------------------+
 |	Configurações inicias	|	
-+-----------------------+
++-------------------------------+
 
 Sistema utilizado: 
 IP : 192.168.1.10
@@ -17,17 +17,17 @@ Description:	Debian GNU/Linux 8.7 (jessie)
 Release:	8.7
 Codename:	jessie
 
-+------------+
++------------------+
 |	Instalação |  		
-+------------+
++------------------+
 
 Dependências:
 
 apt-get update ; apt-get install libreadline-dev git build-essential libattr1-dev libblkid-dev autoconf python-dev python-dnspython libacl1-dev gdb pkg-config libpopt-dev libldap2-dev dnsutils acl attr libbsd-dev docbook-xsl libcups2-dev libgnutls28-dev rsync vim ntp figlet -y
 
-+-----+
++---------------+
 |	NTP	|	
-+-----+
++---------------+
 
 Configurando um servidor NTP
 
@@ -46,9 +46,9 @@ dpkg-reconfigure tzdata
 
 date
 
-+------------------------+
++------------------------------+
 |	Identificando Servidor |	
-+------------------------+
++------------------------------+
 
 touch /etc/motd
 vim /etc/motd
@@ -62,9 +62,9 @@ figlet "srvDominio"
 \__ \ |   \ V /| |_| | (_) | | | | | | | | | | | (_) |
 |___/_|    \_/ |____/ \___/|_| |_| |_|_|_| |_|_|\___/ 
 
-+---------+
++---------------+
 |	Via apt	|	
-+---------+
++---------------+
 
 apt-get update ; apt-get install samba winbind -y ; rm /etc/samba/smb.conf
 
