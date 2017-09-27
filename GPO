@@ -174,3 +174,61 @@ Dados de valor: http://www.globo.com/
 ----- Internet Explorer 
 
 Impedir a alteração das configurações de Proxy (habilitar)
+
++---------------+
+|	HTA	          |
++---------------+
+
+Crie uma gpo HTA
+
+Cole a pasta HTA (após modificações de acordo com a empresa) em:  \\srvDominio\netlogon
+
+- Configurações do Usuario
+-- Diretivas
+--- Configurações do Windows
+---- Scripts (logon/logoff)
+----- Logon
+
+\\srvDominio\netlogon\HTA\hta.bat
+
++---------------+
+|	bgInfo	      |
++---------------+
+
+Criando uma gpo bgInfo.
+
+Cole a pasta bgInfo (após modificações de acordo com a empresa) em:
+
+- Configurações do Usuario
+-- Diretivas
+--- Configurações do Windows
+---- Scripts (logon/logoff)
+----- Logon
+
+Cole na raiz da pasta \\srvDominio\netlogon sua pasta bgInfo
+
+obs: A imagem BMP tem que estar no c: das estações.
+
++-----------------------+
+|	Lock Screen	          |
++-----------------------+
+
+Crie uma gpo LockScreen
+
+Cole as pastas DefaultUser e LockScreen (após modificações de acordo com a empresa) em:
+
+- Configurações do Usuario
+-- Diretivas
+--- Configurações do Windows
+---- Scripts (logon/logoff)
+----- Logon
+
+Cole na raiz da pasta \\srvDominio\netlogon sua pasta LockScreen e DefaultUser
+
+obs: A imagem deve ter no maximo 200 kb.
+
+Ex:
+\\srvDominio\netlogon\Background\LockScreen.cmd
+\\srvDominio\netlogon\DefaultUser\user.bat
+
+É necessario reiniciar duas vezes para ser aplicado.
