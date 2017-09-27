@@ -1,0 +1,113 @@
++-----------------------+
+|	Configurações inicias	|	
++-----------------------+
+
+Sistema utilizado: 
+IP : 192.168.1.10
+Interface de rede: eth0
+Nome da maquina: srvDominio
+
+Nome do dominio: VULCABRAS.GOV.BR | vulcabras.gov.br
+
+lsb_release -a
+
+No LSB modules are available.
+Distributor ID:	Debian
+Description:	Debian GNU/Linux 8.7 (jessie)
+Release:	8.7
+Codename:	jessie
+
++------------+
+|	Instalação |  		
++------------+
+
+Dependências:
+
+apt-get update ; apt-get install libreadline-dev git build-essential libattr1-dev libblkid-dev autoconf python-dev python-dnspython libacl1-dev gdb pkg-config libpopt-dev libldap2-dev dnsutils acl attr libbsd-dev docbook-xsl libcups2-dev libgnutls28-dev rsync vim ntp figlet -y
+
++-----+
+|	NTP	|	
++-----+
+
+Configurando um servidor NTP
+
+vim /etc/ntp.conf
+
+server a.st1.ntp.br
+server b.st1.ntp.br
+server c.st1.ntp.br
+server d.st1.ntp.br
+server a.ntp.br
+server b.ntp.br
+server c.ntp.br
+server gps.ntp.br 
+
+dpkg-reconfigure tzdata
+
+date
+
++------------------------+
+|	Identificando Servidor |	
++------------------------+
+
+touch /etc/motd
+vim /etc/motd
+
+Apagar todo conteudo do arquivo.
+
+figlet "srvDominio"
+                ____                  _       _       
+ ___ _ ____   _|  _ \  ___  _ __ ___ (_)_ __ (_) ___  
+/ __| '__\ \ / / | | |/ _ \| '_ ` _ \| | '_ \| |/ _ \ 
+\__ \ |   \ V /| |_| | (_) | | | | | | | | | | | (_) |
+|___/_|    \_/ |____/ \___/|_| |_| |_|_|_| |_|_|\___/ 
+
++---------+
+|	Via apt	|	
++---------+
+
+apt-get update ; apt-get install samba winbind -y ; rm /etc/samba/smb.conf
+
+samba-tool domain provision --realm=VULCABRAS.GOV.BR --domain=VULCABRAS --dns-backend=SAMBA_INTERNAL --adminpass=Senha_1 --server-role=dc --function-level=2008_R2
+
+vim /etc/samba/smb.conf
+
+Ajustar o DNS conforme sua rede.
+	
+	dns forwarder = 8.8.8.8
+
+Adcionar a seguinte linha abaixo da linha acima:	
+
+  server services = s3fs rpc nbt wrepl ldap cldap kdc drepl winbind ntp_signd kcc dnsupdate dns
+
+Embaixo de netbios name.
+
+	interfaces = lo eth0
+  bind interfaces only = Yes
+
+vim /etc/resolv.conf
+
+nameserver 127.0.0.1
+#nameserver 192.168.1.10
+nameserver 8.8.8.8
+search vulcabras.gov.br
+domain vulcabras.gov.br
+
+Bloqueando o arquivo de edição.
+
+chattr +i /etc/resolv.conf
+
+krb5
+
+cp /var/lib/samba/private/krb5.conf /etc
+
+vim /etc/krb5.conf
+
+[libdefaults]
+        default_realm = VULCABRAS.GOV.BR
+        dns_lookup_realm = false
+        dns_lookup_kdc = true
+
+Reiniciar e colocar uma maquina no dominio.
+
+init 6
