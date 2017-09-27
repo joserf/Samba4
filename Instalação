@@ -110,4 +110,4 @@ vim /etc/krb5.conf
 
 Reiniciar e colocar uma maquina no dominio.
 
-init 6
+shutdown -r now
