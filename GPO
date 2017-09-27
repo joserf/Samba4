@@ -231,4 +231,4 @@ Ex:
 \\srvDominio\netlogon\Background\LockScreen.cmd
 \\srvDominio\netlogon\DefaultUser\user.bat
 
-É necessario reiniciar duas vezes para ser aplicado.
+É necessario reiniciar duas vezes para ser aplicado as imagens nas estações.
