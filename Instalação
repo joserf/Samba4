@@ -136,3 +136,11 @@ samba-tool user setexpiry Administrator --noexpiry
 	
 samba-tool user setexpiry --days=20 Administrator
 
+---------------------------------------------------------------------------------------------------------------------------------------------
+EXCLUIR ATRIBUTO DE INGRESSO AO DOMÍNIO
+1- Abra o “Active Directory Users and Computers ” em Start / Administrative Tools, clique em View e depois em “Advanced Features“.
+2- Clique com o botão direito na raíz do domínio e vá até “Properties“.
+3- Nas Propriedades selecione a aba “Attribute Editor” e localize o atributo “ms-DS-MachineAccountQuota“. Clique em “Edit” logo em seguida.
+4- Em “Value” coloque o valor “0” para que nenhuma máquina seja adicionada ao domínio. Confirme em OK no atributo e no editor.
+---------------------------------------------------------------------------------------------------------------------------------------------
+
