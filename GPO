@@ -1,0 +1,176 @@
++-------+
+|	GPOs	|	
++-------+
+
+======================
+Default Domain Policy
+======================
+
+=== ESPERAR PELA REDE AO INICIAR ===
+
+- Configurações do Computador
+-- Diretivas
+--- Modelos Administrativos: definições de diretivas ...
+---- Sistema
+------ Logon
+
+Sempre esperar pela rede ao iniciar o computador e fazer logon (habilitar)
+Sempre use o logon em segundo plano pesonalizado (habilitar)
+
+=== ALTERAR A HORA DO SISTEMA ===
+
+- Configurações do Computador
+-- Diretivas
+--- Configurações do Windows
+---- Configurações de segurança
+----- Diretivas Locais
+------ Atribuição de diretos de usuario
+------- Alterar a hora do sistema
+
+Adicionar 'Domain Users'
+
+=== IMPEDIR MOVER BARRA DE TAREFAS ===
+
+- Configurações do Usuario
+-- Diretivas
+--- Modelos administrativos
+---- Menu 'Iniciar' e barra de tarefas
+
+Impedir que os usuarios movam a barra de tarefas para outra localização de encaixe na tela (habilitar)
+Impedir que os usuários redimensionem a barra de tarefas (habilitar)
+Adicionar o comando Executar ao Menu Iniciar (habilitar)
+
+=======================
+Papel de parede e temas
+=======================
+
+=== IMPEDIR ALTERACAO DE TEMA E PAPEL DE PAREDE, JÁ APLICANDO UM TEMA CLASSICO. === 
+
+- Configurações do Usuario
+-- Diretivas
+--- Modelos Administrativos
+---- Painel de Controle
+------ Personalização
+
+Impedir a alteração de tema (habilitar) 
+Impedir a alteração de plano de fundo da area de trabalho (habilitar)
+
+Forçar um arquivo de estilo visual especifico ou forçar o estilo classico do Windows (habilitar) e configurar (Deixar em branco para tema classico) 
+
+=== Background Logon ===
+
+Script para jogar arquivo na pasta correta:
+
+vim background.bat
+
+@echo off
+ROBOCOPY "\\srvDominio\sysvol\vulcabras.gov.br\scripts\Background" "%WinDir%\System32\oobe\info\backgrounds" *.jpg /mir
+
+backgroundDefault.jpg
+
+Colocar o arquivo "background.bat" e backgroundDefault.jpg (esta imagem deve ter o formato JPG e não deve ter mais de 250 KBs) em:
+
+\\srvDominio\sysvol\vulcabras.gov.br\scripts\Background
+
+- Configurações do Usuario
+-- Diretivas
+--- Configurações do Windows
+---- Scripts (logon/logoff)
+----- Logon
+
+E adicionar o caminho abaixo
+
+\\srvDominio\sysvol\vulcabras.gov.br\scripts\Background\background.bat
+
+- Configurações do Usuario
+-- Diretivas
+--- Modelos administrativos
+
+Em todas as configurações: Papel de parede da Area de trabalho
+
+Colocar um arquivo JPG para ser o papel de parede em um compartilhamento no servidor.
+
+\\srvDominio\sysvol\vulcabras.gov.br\scripts\WallPaper\01.jpg (Preencher)
+
+===========================
+Atalhos da area de trabalho
+===========================
+
+=== ATALHOS NA AREA DE TRABALHO (MEUS DOCUMENTOS E COMPUTADOR) ===
+
+- Configurações do Usuario
+-- Preferencias
+--- Configurações do Windows
+---- Registro
+
+Ação: Criar
+Hive: HKEY_CURRENT_USER
+Caminho da chave: Software\Microsoft\Windows\CurrentVersion\Explorer\HideDesktopIcons\NewStartPanel
+Nome do valor: {20D04FE0-3AEA-1069-A2D8-08002B30309D}
+Tipo de valor: REG_DWORD
+Dados de valor: 0
+[*]Decimal
+
+Criar outra igual a regra acima com essa chave: {59031a47-3f72-44a7-89c5-5595fe6b30ee}
+
+=====
+Proxy
+=====
+
+=== PROXY ===
+
+- Configurações do Usuario
+-- Preferencias
+--- Configurações do Windows
+---- Registro
+
+Ação: Criar
+Hive: HKEY_CURRENT_USER
+Caminho da chave: Software\Microsoft\Windows\CurrentVersion\Internet Settings
+Nome do valor: ProxyEnable
+Tipo de valor: REG_DWORD
+Dados de valor: 1
+[*]Decimal
+
+Ação: Criar
+Hive: HKEY_CURRENT_USER
+Caminho da chave: Software\Microsoft\Windows\CurrentVersion\Internet Settings
+Nome do valor: ProxyServer
+Tipo de valor: REG_SZ
+Dados de valor: 192.168.1.1:3128
+
+Ação: Criar
+Hive: HKEY_CURRENT_USER
+Caminho da chave: Software\Microsoft\Windows\CurrentVersion\Internet Settings
+Nome do valor: ProxyOverride
+Tipo de valor: REG_SZ
+Dados de valor: 192.168.1.10;<local>
+
+*REMOVER LEMBRAR MINHAS CREDENCIAIS 
+
+Ação: Criar
+Hive: HKEY_CURRENT_USER
+Caminho da chave: Software\Microsoft\Windows\CurrentVersion\Internet Settings
+Nome do valor: DisablePasswordCaching
+Tipo de valor: REG_DWORD
+Dados de valor: 1
+[*]Decimal
+
+=== PAGINA INICIAL ===
+
+Ação: Criar
+Hive: HKEY_CURRENT_USER
+Caminho da chave: Software\Microsoft\Internet Explorer\Main
+Nome do valor: Start Page
+Tipo de valor: REG_SZ
+Dados de valor: http://www.globo.com/
+
+=== Impedir alterar proxy ===
+
+- Configuração do usuário 
+-- Diretivas
+--- Modelos administrativos 
+---- Componentes do Windows 
+----- Internet Explorer 
+
+Impedir a alteração das configurações de Proxy (habilitar)
