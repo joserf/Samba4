@@ -111,3 +111,28 @@ vim /etc/krb5.conf
 Reiniciar e colocar uma maquina no dominio.
 
 shutdown -r now
+
++---------------+
+|	Dicas	|	
++---------------*
+
+- Verificar as configurações de politicas de senha
+	
+samba-tool domain passwordsettings show
+
+- Desabilitar complexidade de senha no samba 4
+	
+samba-tool domain passwordsettings set --complexity=off
+
+- Desabilitar tamanho mínimo da senha no samba 4 .
+	
+samba-tool domain passwordsettings set --min-pwd-length=0
+
+- Desabilitar expiração de Senha de administrador no samba 4.
+
+samba-tool user setexpiry Administrator --noexpiry
+
+- Definir quantos dias o senha do administrador expirará no samba 4.
+	
+samba-tool user setexpiry --days=20 Administrator
+
